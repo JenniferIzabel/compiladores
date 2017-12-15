@@ -8,6 +8,7 @@ from analise_sintatica import parser
 from analise_sintatica import tree
 from analise_semantica import *
 from llvmlite import ir
+from ctypes import CFUNCTYPE, c_int32
 
 
 class Geracao:
@@ -16,12 +17,15 @@ class Geracao:
 		self.ArvoreSintatica = Arvore.ast
 		sema = Semantica(code)
 		self.dicionarioSimbolos = sema.dicionarioSimbolos
+		self.lista_parametros = sema.lista_parametros
 		self.module = ir.Module('modulo.bc')
 		self.inteiro = ir.IntType(32)
 		self.flutuante = ir.FloatType()
 		self.void = ir.VoidType()
 		self.align = 4
 		self.funcao = None 
+		self.vleia = None
+		self.vescreva = None
 		self.entryBlock = None
 		self.endBasicBlock = None
 		self.builder = None
@@ -149,20 +153,28 @@ class Geracao:
 	def lista_parametros(self, node, nome_func):
 		#print("-->lista_parametros")
 		if(node.type == "lista_parametros_1"):
-			self.lista_parametros(node.child[0], nome_func)
-			self.parametro(node.child[1], nome_func)
+			print("ENTROU")
+			for (k,v) in self.lista_parametros.items():
+				if (k == nome_func):
+					for(key, val) in v:
+						x = val.split(".")
+						tipo = x[0]
+						var = x[1]
+						if(tipo == "inteiro"):
+							v = ir.GlobalVariable(self.module, self.inteiro,var)
+							v.initializer = ir.Constant(self.inteiro, 0)
+							v.linkage = "common"
+							v.align = self.align
+						elif(tipo == "flutuante"):
+							v = ir.GlobalVariable(self.module, self.flutuante,var)
+							v.initializer =  ir.Constant(self.flutuante, 0.0)
+							v.linkage = "common"
+							v.align = self.align
+			
 		else:
-			if(node.child[0] != None):
-				self.parametro(node.child[0], nome_func)
+			pass
 
 
-	def parametro(self, node, nome_func):
-		#print("-->parametro ")
-		if(node.type == "parametro_1"):
-			tipo = node.child[0]
-			ident = node.value
-		else:
-			self.parametro(node.child[0])
 
 	def corpo(self, node):
 		#print("-->corpo")
@@ -186,14 +198,19 @@ class Geracao:
 			print("repita")
 
 		elif(acao.type == "leia"):
-			print("leia")
+			self.leia()
 
 		elif(acao.type == "escreva"):
-			print("escreva")
+			self.escreva()
 
 		elif(acao.type == "retorna"):
 			self.valor_retorno = self.val_ret(self.escopo)
 
+	def leia(self):
+		print("-->leia")
+
+	def escreva(self):
+		print("-->escreva")
 
 	def val_ret(self, func):
 		#print("-->valor variavel")

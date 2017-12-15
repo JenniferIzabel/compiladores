@@ -13,7 +13,7 @@ class Semantica:
 		Arvore = parser(code)
 		self.ArvoreSintatica = Arvore.ast
 		self.dicionarioSimbolos = {} #{escopo.nome,[estrutura, tipo, valor, utilizada]} 
-		self.paramatros_funcoes = {} #{nome+func.id_atributo,[tipo]}
+		self.parametros_funcoes = {} #{nome,[tipo_param1, tipo+param2]}
 		self.escopo = "global" # inicia no escopo global
 		self.valor = 0 # auxiliar para atribuir valor as variaveis
 		self.i = 0 #auxilia atributos funcoes
@@ -111,14 +111,28 @@ class Semantica:
 		#print("-->parametro ")
 		if(node.type == "parametro_1"):
 			tipo = node.child[0]
-			ident = node.value
+			var = node.value
+			b = False
+
+			for (k,v) in self.parametros_funcoes.items():
+				if(k == nome_func):
+					v.append(str(tipo)+"."+var) #[tipo.nome_var1, tipo.nome_var2]
+					b = True
+			if(b == False):
+				self.parametros_funcoes[nome_func] = [tipo]
 		else:
 			self.parametro(node.child[0])
 
+		if self.escopo+'.'+var in self.dicionarioSimbolos.keys():
+			print("Erro semântico: variável "+var+" já declarada no escopo "+self.escopo)
+		else:
+			self.dicionarioSimbolos[self.escopo+'.'+var] = ['variavel',tipo.type,0,False]
+
 	def corpo(self, node):		
 		if(node.type == "corpo_1"):
-			self.acao(node.child[1])
 			self.corpo(node.child[0])
+			self.acao(node.child[1])
+
 			
 		if(node.type == "corpo_2"):
 			pass
@@ -159,7 +173,7 @@ class Semantica:
 
 
 	def atribui_retorno(self, n):
-		#print("->atribui retorno") 
+		#print("->atribui retorno")
 		for (k,v) in self.dicionarioSimbolos.items():
 				va = k.split(".")
 				if (k == self.escopo):
@@ -257,7 +271,9 @@ class Semantica:
 				return a + b
 			else:
 				return a - b
-		else:
+		elif(node.type == "expressao_multiplicativa_1"):
+			n = expressao_unaria(node.child[0])
+			return n
 			pass
 
 
@@ -301,9 +317,25 @@ class Semantica:
 		elif(node.type == "fator_2"):
 			if(node.child[0].type == "var_1"):
 				self.numero(node.child[0])
-				return self.valor_variavel(node.child[0])
-			elif(node.child[0] == "var_2"):
+				var = node.child[0].value
+
+				for (k,v) in self.dicionarioSimbolos.items():
+					aux = k.split(".")
+					if(len(aux) > 1 and aux[1] == var):
+						
+						v[3] = True
+
+				n = self.valor_variavel(node.child[0])
+				return n
+			elif(node.child[0] == "var_2"):#vetor IMPLEMENTAR
 				self.numero(node.child[0])
+				var = node.child[0].value
+				
+				for (k,v) in self.dicionarioSimbolos.items():
+					aux = k.split(".")
+					if(len(aux) > 1 and aux[1] == var):
+						v[3] = True
+
 				return node.child[0].value
 			elif(node.child[0].type == "chamada_funcao"):
 				v = self.chamada_funcao(node.child[0].child[0])
@@ -326,7 +358,7 @@ class Semantica:
 			tipo = "cientifico"
 		return node.value
 
-	def chamada_funcao(self, node):#############
+	def chamada_funcao(self, node):
 		print("->chamada_funcao")
 
 
@@ -361,7 +393,6 @@ class Semantica:
 	def possui_principal(self, dicio):
 		if ("principal" not in dicio.keys()):
 			print ("Erro semântico,  Não possui função principal()")
-			exit(1)	
 
 	def print_dicionario(self, dicio):
 		print("\nTABELA")
